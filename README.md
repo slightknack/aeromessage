@@ -21,27 +21,38 @@ Sometimes you open Messages and there are 47 unread conversations staring back a
 - **Grid view** of all unread conversations at a glance
 - **Draft and commit** replies before sending
 - **Reactions** displayed inline on message bubbles
-- **Later/Ignore** to triage what doesn't need a response
+- **Later/Ignore/Read** to triage what doesn't need a response
 - **Send All** when you're ready
+- **Contact resolution** from macOS Contacts
 
-## Install
+## Install (Rust/Tauri)
 
-Requires macOS and Python 3.10+.
+Requires macOS 10.15+ and Rust.
 
 ```sh
 git clone https://github.com/slightknack/aeromessage.git
-cd aeromessage
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-./build
-cp -r out/People.app /Applications/
+cd aeromessage/oxidized
+./build.sh
 ```
+
+The DMG will be at `oxidized/out/Aeromessage.dmg`. Open it and drag to Applications.
 
 On first launch, grant **Full Disk Access** in System Settings to read your messages.
 
-## Development
+### Development
 
 ```sh
+cd oxidized
+npx @tauri-apps/cli dev
+```
+
+## Legacy (Python/Flask)
+
+There's also an older Python version in `src/`. Requires Python 3.10+.
+
+```sh
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
 ./run
 ```
 
