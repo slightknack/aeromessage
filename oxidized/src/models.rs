@@ -250,4 +250,110 @@ mod tests {
         };
         assert_eq!(conv3.name(), "+15551234567");
     }
+
+    #[test]
+    fn test_conversation_messages_url() {
+        let direct = Conversation {
+            chat_id: 1,
+            display_name: None,
+            chat_identifier: "+15551234567".into(),
+            style: 45,
+            unread_count: 1,
+            last_message_date: Utc::now(),
+            messages: vec![],
+            participants: vec![],
+            resolved_name: None,
+        };
+        assert_eq!(direct.messages_url(), "imessage://+15551234567");
+
+        let group = Conversation {
+            style: 43,
+            chat_identifier: "chat123456".into(),
+            ..direct
+        };
+        assert_eq!(group.messages_url(), "imessage://?groupID=chat123456");
+    }
+
+    #[test]
+    fn test_message_is_image_only() {
+        let img_attachment = Attachment {
+            filename: "photo.jpg".into(),
+            mime_type: "image/jpeg".into(),
+            transfer_name: "photo.jpg".into(),
+        };
+
+        // Image with no text
+        let msg = Message {
+            rowid: 1,
+            guid: "test".into(),
+            text: "\u{FFFC}".into(), // Just placeholder
+            date: Utc::now(),
+            is_from_me: false,
+            sender: None,
+            attachments: vec![img_attachment.clone()],
+            reactions: vec![],
+        };
+        assert!(msg.is_image_only());
+
+        // Image with text
+        let msg_with_text = Message {
+            text: "Check this out \u{FFFC}".into(),
+            ..msg.clone()
+        };
+        assert!(!msg_with_text.is_image_only());
+
+        // No attachments
+        let msg_no_att = Message {
+            attachments: vec![],
+            ..msg
+        };
+        assert!(!msg_no_att.is_image_only());
+    }
+
+    #[test]
+    fn test_message_reaction_summary() {
+        let msg = Message {
+            rowid: 1,
+            guid: "test".into(),
+            text: "Hello".into(),
+            date: Utc::now(),
+            is_from_me: false,
+            sender: None,
+            attachments: vec![],
+            reactions: vec![
+                Reaction { emoji: "❤️".into(), is_from_me: false, sender: None },
+                Reaction { emoji: "👍".into(), is_from_me: true, sender: None },
+                Reaction { emoji: "❤️".into(), is_from_me: true, sender: None }, // Duplicate
+            ],
+        };
+        assert_eq!(msg.reaction_summary(), "❤️👍");
+    }
+
+    #[test]
+    fn test_conversation_empty_display_name() {
+        let conv = Conversation {
+            chat_id: 1,
+            display_name: Some("".into()), // Empty string
+            chat_identifier: "+15551234567".into(),
+            style: 45,
+            unread_count: 1,
+            last_message_date: Utc::now(),
+            messages: vec![],
+            participants: vec![],
+            resolved_name: Some("John".into()),
+        };
+        // Should skip empty display_name and use resolved_name
+        assert_eq!(conv.name(), "John");
+    }
+
+    #[test]
+    fn test_all_reaction_types() {
+        assert_eq!(reaction_emoji(2000), Some("❤️"));
+        assert_eq!(reaction_emoji(2001), Some("👍"));
+        assert_eq!(reaction_emoji(2002), Some("👎"));
+        assert_eq!(reaction_emoji(2003), Some("😂"));
+        assert_eq!(reaction_emoji(2004), Some("‼️"));
+        assert_eq!(reaction_emoji(2005), Some("❓"));
+        assert_eq!(reaction_emoji(2006), Some("🫶"));
+    }
 }

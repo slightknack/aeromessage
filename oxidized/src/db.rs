@@ -390,4 +390,44 @@ mod tests {
         let path = Database::default_path();
         assert!(path.to_string_lossy().contains("Library/Messages/chat.db"));
     }
+
+    #[test]
+    fn test_parse_attributed_body_long_length() {
+        // Test 0x81 prefix for longer strings (>127 bytes)
+        let mut blob = Vec::new();
+        blob.extend_from_slice(b"NSString");
+        blob.extend_from_slice(&[0, 0, 0, 0, 0]); // 5 bytes padding
+        blob.push(0x81); // Long length marker
+        blob.extend_from_slice(&[10, 0]); // 10 in little-endian
+        blob.extend_from_slice(b"0123456789");
+
+        assert_eq!(parse_attributed_body(&blob), Some("0123456789".to_string()));
+    }
+
+    #[test]
+    fn test_parse_attributed_body_truncated() {
+        // NSString marker but not enough data after
+        let blob = b"NSString12345";
+        assert_eq!(parse_attributed_body(blob), None);
+    }
+
+    #[test]
+    fn test_parse_attributed_body_length_exceeds_data() {
+        let mut blob = Vec::new();
+        blob.extend_from_slice(b"NSString");
+        blob.extend_from_slice(&[0, 0, 0, 0, 0]);
+        blob.push(100); // Length says 100 bytes
+        blob.extend_from_slice(b"short"); // Only 5 bytes
+
+        assert_eq!(parse_attributed_body(&blob), None);
+    }
+
+    #[test]
+    fn test_db_error_display() {
+        let err = DbError::NotFound(PathBuf::from("/test/path"));
+        assert!(err.to_string().contains("/test/path"));
+
+        let err = DbError::PermissionDenied(PathBuf::from("/secret"));
+        assert!(err.to_string().contains("Permission denied"));
+    }
 }

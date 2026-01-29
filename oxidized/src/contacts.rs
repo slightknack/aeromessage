@@ -44,9 +44,6 @@ impl ContactResolver {
 
     /// Load contacts from macOS AddressBook database.
     pub fn load_macos_contacts(&mut self) -> Result<usize, String> {
-        use rusqlite::{Connection, OpenFlags};
-        use std::path::PathBuf;
-        
         // Find AddressBook database
         let home = dirs::home_dir().ok_or("Cannot find home directory")?;
         let sources_dir = home.join("Library/Application Support/AddressBook/Sources");
@@ -75,7 +72,7 @@ impl ContactResolver {
     
     fn load_from_addressbook_db(&mut self, db_path: &std::path::Path) -> Result<usize, String> {
         use rusqlite::{Connection, OpenFlags};
-        
+
         let conn = Connection::open_with_flags(
             db_path,
             OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -196,5 +193,40 @@ mod tests {
 
         // Should find +1 prefixed version
         assert_eq!(resolver.resolve("+15551234567"), Some("Bob Smith"));
+    }
+
+    #[test]
+    fn test_resolver_email() {
+        let mut resolver = ContactResolver::new();
+        resolver.add("john@example.com", "John Doe");
+
+        assert_eq!(resolver.resolve("john@example.com"), Some("John Doe"));
+        assert_eq!(resolver.resolve("other@example.com"), None);
+    }
+
+    #[test]
+    fn test_resolver_empty_values() {
+        let mut resolver = ContactResolver::new();
+        resolver.add("", "No ID");
+        resolver.add("+15551234567", "");
+        resolver.add("", "");
+
+        // Empty identifiers or names shouldn't be added
+        assert_eq!(resolver.resolve(""), None);
+        assert_eq!(resolver.resolve("+15551234567"), None);
+    }
+
+    #[test]
+    fn test_resolver_default() {
+        let resolver = ContactResolver::default();
+        assert_eq!(resolver.resolve("+15551234567"), None);
+    }
+
+    #[test]
+    fn test_normalize_phone_edge_cases() {
+        assert_eq!(normalize_phone(""), "");
+        assert_eq!(normalize_phone("abc"), "");
+        assert_eq!(normalize_phone("+++123"), "+++123");
+        assert_eq!(normalize_phone("  +1  555  "), "+1555");
     }
 }

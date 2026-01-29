@@ -1,10 +1,8 @@
 # Aeromessage
 
-*Batch-reply to iMessages, beautifully.*
-
 ![Screenshot](example.png)
 
-A native macOS app for processing your unread messages in one sitting. Draft replies, commit them, then send all at once.
+Batch-reply to iMessages. Draft replies, commit them, send all at once.
 
 ## Features
 

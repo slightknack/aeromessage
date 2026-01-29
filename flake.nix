@@ -1,5 +1,5 @@
 {
-  description = "Aeromessage - Batch-reply to iMessages, beautifully";
+  description = "Aeromessage - Batch-reply to iMessages";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
