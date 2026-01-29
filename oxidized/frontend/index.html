@@ -94,8 +94,7 @@
                     `;
                 } else {
                     document.getElementById('app').innerHTML = `
-                        <div class="empty-state">
-                            <h2>Error</h2>
+                        <div class="error-state">
                             <p>${e}</p>
                         </div>
                     `;
@@ -164,8 +163,7 @@
                             </div>
                         ` : `
                             <div class="empty-state">
-                                <h2>Inbox Zero!</h2>
-                                <p>No unread messages. Nice work!</p>
+                                <p>No unread messages</p>
                             </div>
                         `}
                     </div>

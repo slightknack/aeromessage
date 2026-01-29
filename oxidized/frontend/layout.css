@@ -721,16 +721,28 @@ body {
 /* === Empty State === */
 .empty-state {
     text-align: center;
-    padding: 60px 20px;
-    color: var(--c-gray-warm);
+    padding: 80px 40px;
+    color: var(--c-gray);
 }
 
-.empty-state h2 {
-    font-family: var(--font-serif);
-    font-size: var(--text-serif-xl);
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: var(--c-green);
+.empty-state p {
+    font-size: var(--text-base);
+    margin: 0;
+}
+
+/* === Error State === */
+.error-state {
+    text-align: center;
+    padding: 80px 40px;
+}
+
+.error-state p {
+    font-size: var(--text-sm);
+    color: var(--c-red-dark);
+    background: var(--alpha-red-10);
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    display: inline-block;
 }
 
 /* === Onboarding === */
