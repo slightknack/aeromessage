@@ -43,6 +43,7 @@ mkdir -p "$OUT_DIR"
 if command -v create-dmg &> /dev/null; then
     echo "Creating DMG..."
     rm -f "$DMG_PATH"
+    # Use --skip-jenkins to avoid opening Finder windows during creation
     create-dmg \
         --volname "Aeromessage" \
         --window-pos 200 120 \
@@ -50,6 +51,8 @@ if command -v create-dmg &> /dev/null; then
         --icon-size 100 \
         --icon "Aeromessage.app" 150 190 \
         --app-drop-link 450 190 \
+        --no-internet-enable \
+        --skip-jenkins \
         "$DMG_PATH" \
         "$APP_PATH"
     echo "DMG created: $DMG_PATH"
