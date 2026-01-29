@@ -34,6 +34,14 @@ cd oxidized
 npx @tauri-apps/cli dev
 ```
 
+Or with Nix:
+
+```sh
+nix develop
+cd oxidized
+cargo tauri dev
+```
+
 ## License
 
 CC0 1.0 Universal - Public Domain
