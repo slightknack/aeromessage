@@ -14,8 +14,6 @@ Batch-reply to iMessages. Draft replies, commit them, send all at once.
 
 ## Install
 
-Download the latest DMG from [Releases](https://github.com/slightknack/aeromessage/releases), or build from source:
-
 ```sh
 nix run
 ```
