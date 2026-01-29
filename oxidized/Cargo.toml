@@ -1,6 +1,6 @@
 [package]
 name = "aeromessage"
-version = "0.1.20"
+version = "0.1.23"
 edition = "2021"
 description = "Batch-reply to iMessages"
 license = "MIT"

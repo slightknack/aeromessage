@@ -32,13 +32,6 @@ On first launch, grant **Full Disk Access** in System Settings to read your mess
 ## Development
 
 ```sh
-cd oxidized
-npx @tauri-apps/cli dev
-```
-
-Or with Nix:
-
-```sh
 nix develop
 cd oxidized
 cargo tauri dev

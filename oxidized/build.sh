@@ -32,7 +32,7 @@ echo "Cleaning previous build..."
 rm -rf target/release/bundle
 
 echo "Building Aeromessage..."
-npx @tauri-apps/cli build
+cargo tauri build
 
 APP_PATH="target/release/bundle/macos/Aeromessage.app"
 OUT_DIR="out"
