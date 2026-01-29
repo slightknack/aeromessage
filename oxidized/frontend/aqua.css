@@ -1,0 +1,678 @@
+/*
+ * Aqua.css - Frutiger Aero Classless Stylesheet
+ * A minimal, classless CSS library inspired by the 2004-2013 aesthetic
+ */
+
+/* === Fonts === */
+@font-face {
+    font-family: 'Inclusive Sans';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/InclusiveSans-Regular.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Inclusive Sans';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/InclusiveSans-Bold.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Inclusive Sans';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/InclusiveSans-Italic.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Inclusive Sans';
+    font-style: italic;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/InclusiveSans-BoldItalic.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Hedvig Letters Serif';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/HedvigLettersSerif.ttf') format('truetype');
+}
+
+:root {
+    /* === Font Families === */
+    --font-sans: 'Inclusive Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-serif: 'Hedvig Letters Serif', Georgia, serif;
+
+    /* === Type Scale (Sans) === */
+    --text-xs: 10px;
+    --text-sm: 11px;
+    --text-base: 13px;
+    --text-md: 14px;
+
+    /* === Type Scale (Serif) - slightly larger for optical balance === */
+    --text-serif-sm: 12px;
+    --text-serif-base: 14px;
+    --text-serif-md: 16px;
+    --text-serif-lg: 20px;
+    --text-serif-xl: 28px;
+
+    /* === Primitives === */
+    
+    /* Neutrals */
+    --c-white: #ffffff;
+    --c-offwhite: #f5f5f5;
+    --c-silver: #c7cfcc;
+    --c-gray: #819796;
+    --c-gray-warm: #577277;
+    --c-dark: #172038;
+    --c-navy: #253a5e;
+
+    /* Blues */
+    --c-blue: #4f8fba;
+    --c-blue-light: #73bed3;
+    --c-blue-dark: #3c5e8b;
+    --c-blue-bright: #29adff;
+
+    /* Traffic lights */
+    --c-green: #00d74e;
+    --c-green-light: #0ced6a;
+    --c-green-dark: #008f17;
+    --c-amber: #ffbd2c;
+    --c-amber-light: #ffcf45;
+    --c-amber-dark: #d37800;
+    --c-red: #ff5a5b;
+    --c-red-light: #ff8680;
+    --c-red-dark: #c62a34;
+
+    /* Atmosphere */
+    --c-cyan: #a8edea;
+    --c-cyan-light: #d7f0ef;
+    --c-cyan-dark: #39dcd5;
+    --c-pink: #fed6e3;
+    --c-pink-light: #f9eff2;
+    --c-pink-dark: #f07da2;
+
+    /* Button grays */
+    --c-btn-light: #e8e8e8;
+    --c-btn-mid: #e0e0e0;
+    --c-btn-dark: #d8d8d8;
+
+    /* Derived button colors */
+    --c-btn-blue: #007df7;
+    --c-btn-blue-hover: #2195fe;
+    --c-btn-edge: #012658;
+    --c-btn-active: #11315f;
+    --c-white-ice: #effdfc;
+    --c-glow-cyan: #77e2dc;
+    --c-ocean: #0096af;
+    --c-caustic: #94e5e0;
+
+    /* === Alpha Scale === */
+    
+    /* White alphas */
+    --alpha-white-95: rgba(255, 255, 255, 0.95);
+    --alpha-white-90: rgba(255, 255, 255, 0.90);
+    --alpha-white-75: rgba(255, 255, 255, 0.75);
+    --alpha-white-50: rgba(255, 255, 255, 0.50);
+    --alpha-white-25: rgba(255, 255, 255, 0.25);
+    --alpha-white-20: rgba(255, 255, 255, 0.20);
+    --alpha-white-10: rgba(255, 255, 255, 0.10);
+
+    /* Black alphas */
+    --alpha-black-50: rgba(0, 0, 0, 0.50);
+    --alpha-black-25: rgba(0, 0, 0, 0.25);
+    --alpha-black-10: rgba(0, 0, 0, 0.10);
+    --alpha-black-05: rgba(0, 0, 0, 0.05);
+
+    /* Colored alphas */
+    --alpha-blue-10: rgba(79, 143, 186, 0.10);
+    --alpha-red-10: rgba(255, 90, 91, 0.10);
+    --alpha-btn-blue-60: rgba(0, 125, 247, 0.6);
+    --alpha-btn-blue-25: rgba(0, 125, 247, 0.25);
+    --alpha-glow-50: rgba(119, 226, 220, 0.5);
+    --alpha-glow-15: rgba(119, 226, 220, 0.15);
+    --alpha-ocean-20: rgba(0, 150, 175, 0.2);
+    --alpha-caustic-50: rgba(148, 229, 224, 0.5);
+    --alpha-dark-70: rgba(23, 32, 56, 0.7);
+    --alpha-navy-40: rgba(37, 58, 94, 0.4);
+    --alpha-navy-25: rgba(37, 58, 94, 0.25);
+
+    /* === Gradients === */
+    --grad-bg: linear-gradient(135deg, var(--c-cyan) 0%, var(--c-pink) 100%);
+    --grad-header: linear-gradient(to bottom, var(--c-white), var(--c-offwhite));
+    --grad-shine: radial-gradient(75% 50% at 50% 0%, var(--c-white-ice), transparent);
+    --grad-glow: radial-gradient(75% 35% at 50% 80%, var(--c-glow-cyan), transparent);
+    --grad-caustic:
+        linear-gradient(to bottom, rgba(0, 0, 20, 0.5) 0%, transparent 50%),
+        radial-gradient(70% 70% at 50% 110%, var(--c-ocean) 10%, transparent 60%),
+        radial-gradient(40% 30% at 50% 95%, var(--c-caustic) 0%, transparent 50%);
+
+    /* === Shadows === */
+    --shadow-panel: 0 4px 20px var(--alpha-black-10);
+    --shadow-card: 0 2px 8px var(--alpha-black-05);
+    --shadow-input-inset:
+        inset 0 2px 4px var(--alpha-black-10),
+        inset 0 1px 2px var(--alpha-black-05),
+        inset 0 -2px 3px var(--alpha-white-75),
+        0 1px 2px var(--c-white);
+    --shadow-input-focus:
+        inset 0 2px 4px var(--alpha-black-10),
+        inset 0 1px 2px var(--alpha-black-05),
+        inset 0 -2px 3px var(--alpha-white-75),
+        0 1px 2px var(--c-white),
+        0 0 0 3px var(--alpha-btn-blue-25);
+
+    /* === Layout === */
+    --radius: 10px;
+    --radius-pill: 50px;
+    --gap: 8px;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* === Body === */
+body {
+    font: 400 var(--text-base)/1.6 var(--font-sans);
+    color: var(--c-dark);
+    background: var(--grad-bg);
+    min-height: 100vh;
+}
+
+/* === Typography === */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--c-dark);
+    margin-bottom: 0.5em;
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1rem; }
+h6 { font-size: 0.9rem; color: var(--c-gray-warm); }
+
+p {
+    margin-bottom: 1em;
+    color: var(--c-dark);
+}
+
+small {
+    font-size: 0.85em;
+    color: var(--c-gray-warm);
+}
+
+strong, b {
+    font-weight: 600;
+}
+
+em, i {
+    font-style: italic;
+}
+
+/* === Links === */
+a {
+    color: var(--c-blue);
+    text-decoration: underline;
+    text-decoration-color: var(--alpha-blue-10);
+    text-underline-offset: 2px;
+    transition: color 0.15s ease-out, text-decoration-color 0.15s ease-out;
+}
+
+a:hover {
+    color: var(--c-blue-dark);
+    text-decoration-color: var(--c-blue);
+}
+
+a:active {
+    color: var(--c-navy);
+}
+
+/* === Code === */
+code, kbd, samp {
+    font-family: Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+    background: var(--alpha-white-75);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    border: 1px solid var(--alpha-black-05);
+}
+
+pre {
+    font-family: Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.9em;
+    background: var(--alpha-white-75);
+    padding: 1em;
+    border-radius: var(--radius);
+    border: 1px solid var(--alpha-black-05);
+    overflow-x: auto;
+    margin-bottom: 1em;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+}
+
+kbd {
+    background: var(--c-btn-mid);
+    border-bottom: 2px solid var(--c-btn-dark);
+    box-shadow: 0 1px 2px var(--alpha-black-10);
+}
+
+/* === Blockquote === */
+blockquote {
+    border-left: 4px solid var(--c-blue-light);
+    padding-left: 1em;
+    margin: 1em 0;
+    color: var(--c-gray-warm);
+    font-style: italic;
+}
+
+/* === Lists === */
+ul, ol {
+    margin: 1em 0;
+    padding-left: 1.5em;
+}
+
+ul { list-style-type: disc; }
+ol { list-style-type: decimal; }
+
+li {
+    margin-bottom: 0.5em;
+}
+
+li::marker {
+    color: var(--c-blue);
+}
+
+/* === Horizontal Rule === */
+hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--alpha-black-10), transparent);
+    margin: 2em 0;
+}
+
+/* === Forms === */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--c-gray-warm);
+    margin-bottom: 0.25em;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+select,
+textarea {
+    font: inherit;
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 10px 16px;
+    border: 2px solid var(--c-btn-mid);
+    border-radius: var(--radius-pill);
+    background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.02) 0px, transparent 1px, transparent 2px),
+        var(--c-btn-mid);
+    box-shadow: var(--shadow-input-inset);
+    color: var(--c-dark);
+    text-shadow: 0 1px 1px var(--c-white);
+    outline: none;
+    transition: background 0.15s ease-out, box-shadow 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+textarea {
+    border-radius: var(--radius);
+    resize: vertical;
+    min-height: 100px;
+}
+
+select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23577277' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--c-gray);
+    text-shadow: 0 1px 1px var(--c-white);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    background-color: var(--c-offwhite);
+    box-shadow: var(--shadow-input-focus);
+    border-color: var(--c-blue-light);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* === Buttons === */
+button,
+input[type="submit"],
+input[type="reset"],
+input[type="button"] {
+    position: relative;
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--c-white);
+    cursor: pointer;
+    padding: 10px 20px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--c-btn-blue);
+    border-bottom: 3px solid var(--c-btn-edge);
+    background-color: var(--c-btn-blue);
+    background-image: var(--grad-shine), var(--grad-glow);
+    box-shadow:
+        inset 0 -2px 4px 1px var(--alpha-btn-blue-60),
+        inset 0 -4px 4px 1px var(--c-glow-cyan),
+        inset 0 0 2px 1px var(--alpha-white-20),
+        0 2px 1px 0 rgba(0, 125, 247, 0.5);
+    text-shadow: 0 2px 3px var(--c-btn-edge);
+    transition:
+        border-color 0.12s ease-out,
+        border-bottom-width 0.08s ease-out,
+        transform 0.08s ease-out,
+        background-color 0.12s ease-out,
+        background-image 0.15s ease-out,
+        box-shadow 0.2s ease-out;
+}
+
+button::before,
+input[type="submit"]::before,
+input[type="reset"]::before,
+input[type="button"]::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 12px;
+    right: 12px;
+    height: 40%;
+    background: linear-gradient(to bottom, var(--c-white-ice), transparent);
+    opacity: 0.75;
+    pointer-events: none;
+    border-radius: var(--radius-pill);
+    transition: opacity 0.15s ease-out;
+}
+
+button::after,
+input[type="submit"]::after,
+input[type="reset"]::after,
+input[type="button"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--alpha-btn-blue-25);
+    filter: blur(8px);
+    transform: translateY(10px);
+    border-radius: var(--radius-pill);
+    transition: transform 0.2s ease-out, filter 0.2s ease-out, background 0.25s ease-out;
+}
+
+button:hover,
+input[type="submit"]:hover,
+input[type="reset"]:hover,
+input[type="button"]:hover {
+    background-color: var(--c-btn-blue-hover);
+    box-shadow:
+        inset 0 -2px 6px 2px var(--alpha-btn-blue-60),
+        inset 0 -6px 8px 2px var(--c-glow-cyan),
+        inset 0 0 4px 1px var(--alpha-white-50),
+        0 0 24px var(--alpha-glow-50),
+        0 6px 20px var(--alpha-navy-25);
+}
+
+button:hover::before { opacity: 1; }
+button:hover::after { transform: translateY(14px); filter: blur(12px); }
+
+button:active,
+input[type="submit"]:active,
+input[type="reset"]:active,
+input[type="button"]:active {
+    border-bottom-width: 2px;
+    transform: translateY(1px);
+    border-color: var(--c-btn-active);
+    background-color: var(--c-btn-active);
+    background-image: var(--grad-caustic);
+    box-shadow:
+        inset 0 6px 15px var(--alpha-dark-70),
+        inset 0 -2px 4px var(--alpha-caustic-50),
+        inset 0 0 10px var(--alpha-navy-40),
+        0 0 8px var(--alpha-glow-15);
+}
+
+button:active::before { opacity: 0.3; }
+button:active::after { transform: translateY(4px); filter: blur(6px); background: var(--alpha-ocean-20); }
+
+button:disabled,
+input[type="submit"]:disabled,
+input[type="reset"]:disabled,
+input[type="button"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* === Tables === */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    background: var(--alpha-white-75);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+thead {
+    background: var(--grad-header);
+}
+
+th {
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--alpha-black-10);
+    color: var(--c-dark);
+}
+
+td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--alpha-black-05);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: var(--alpha-white-50);
+}
+
+/* === Details/Summary === */
+details {
+    background: var(--alpha-white-75);
+    border-radius: var(--radius);
+    padding: 0;
+    margin: 1em 0;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+}
+
+summary {
+    font-weight: 600;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: var(--grad-header);
+    user-select: none;
+    list-style: none;
+}
+
+summary::-webkit-details-marker {
+    display: none;
+}
+
+summary::before {
+    content: "▶";
+    display: inline-block;
+    margin-right: 8px;
+    font-size: 0.7em;
+    transition: transform 0.15s ease-out;
+}
+
+details[open] summary::before {
+    transform: rotate(90deg);
+}
+
+details > *:not(summary) {
+    padding: 16px;
+}
+
+/* === Mark/Highlight === */
+mark {
+    background: var(--c-amber-light);
+    padding: 0.1em 0.3em;
+    border-radius: 3px;
+}
+
+/* === Progress === */
+progress {
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--c-btn-mid);
+    box-shadow: inset 0 1px 3px var(--alpha-black-10);
+}
+
+progress::-webkit-progress-bar {
+    background: var(--c-btn-mid);
+    border-radius: 4px;
+}
+
+progress::-webkit-progress-value {
+    background: linear-gradient(to bottom, var(--c-blue-light), var(--c-blue));
+    border-radius: 4px;
+}
+
+progress::-moz-progress-bar {
+    background: linear-gradient(to bottom, var(--c-blue-light), var(--c-blue));
+    border-radius: 4px;
+}
+
+/* === Images === */
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+}
+
+figure {
+    margin: 1em 0;
+}
+
+figcaption {
+    font-size: 0.85em;
+    color: var(--c-gray-warm);
+    text-align: center;
+    margin-top: 0.5em;
+}
+
+/* === Fieldset === */
+fieldset {
+    border: 1px solid var(--alpha-black-10);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin: 1em 0;
+    background: var(--alpha-white-50);
+}
+
+legend {
+    font-weight: 600;
+    padding: 0 8px;
+    color: var(--c-dark);
+}
+
+/* === Dialog === */
+dialog {
+    border: none;
+    border-radius: var(--radius);
+    padding: 24px;
+    background: var(--alpha-white-95);
+    box-shadow: var(--shadow-panel), 0 0 0 1px var(--alpha-black-05);
+    max-width: 500px;
+}
+
+dialog::backdrop {
+    background: var(--alpha-black-50);
+    backdrop-filter: blur(4px);
+}
+
+/* === Meter === */
+meter {
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--c-btn-mid);
+}
+
+meter::-webkit-meter-bar {
+    background: var(--c-btn-mid);
+    border-radius: 4px;
+}
+
+meter::-webkit-meter-optimum-value {
+    background: linear-gradient(to bottom, var(--c-green-light), var(--c-green));
+    border-radius: 4px;
+}
+
+meter::-webkit-meter-suboptimum-value {
+    background: linear-gradient(to bottom, var(--c-amber-light), var(--c-amber));
+    border-radius: 4px;
+}
+
+meter::-webkit-meter-even-less-good-value {
+    background: linear-gradient(to bottom, var(--c-red-light), var(--c-red));
+    border-radius: 4px;
+}

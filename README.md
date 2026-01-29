@@ -49,4 +49,4 @@ Opens in your browser at `localhost:5050`.
 
 ## License
 
-MIT
+CC0 1.0 Universal - Public Domain

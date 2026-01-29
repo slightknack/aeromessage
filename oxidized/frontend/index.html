@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aeromessage</title>
+    <link rel="stylesheet" href="reset.css">
+    <link rel="stylesheet" href="aqua.css">
+    <link rel="stylesheet" href="layout.css">
+    <style>
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 18px;
+            color: var(--c-gray);
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="loading">Loading...</div>
+
+    <script>
+        const { invoke } = window.__TAURI__.core;
+
+        let conversations = [];
+        let appState = { drafts: {}, committed: {}, later: [], ignored: [] };
+
+        async function init() {
+            try {
+                // Load contacts first (async, non-blocking for UI)
+                invoke('load_contacts').then(count => {
+                    console.log('Loaded contacts:', count);
+                    // Re-fetch conversations with resolved names
+                    invoke('get_conversations').then(convs => {
+                        conversations = convs;
+                        render();
+                        layoutMasonry();
+                    });
+                }).catch(err => {
+                    console.warn('Failed to load contacts:', err);
+                });
+
+                console.log('Invoking get_conversations...');
+                conversations = await invoke('get_conversations');
+                console.log('Got conversations:', conversations.length);
+                appState = await invoke('get_state');
+                console.log('Got state:', appState);
+                render();
+                // Run layout after render, and again after a short delay for images
+                layoutMasonry();
+                setTimeout(layoutMasonry, 100);
+            } catch (e) {
+                console.error('Init error:', e);
+                const isPermissionError = e.toString().includes('Permission denied');
+                if (isPermissionError) {
+                    document.getElementById('app').innerHTML = `
+                        <div class="onboarding">
+                            <div class="onboarding-card">
+                                <img src="icon.png" alt="Aeromessage" class="onboarding-icon">
+                                <h1>Welcome to Aeromessage</h1>
+                                <p class="onboarding-subtitle">Batch-reply to iMessages, beautifully.</p>
+                                
+                                <div class="onboarding-step">
+                                    <div class="step-number">1</div>
+                                    <div class="step-content">
+                                        <h3>Grant Full Disk Access</h3>
+                                        <p>Aeromessage needs permission to read your message history.</p>
+                                    </div>
+                                </div>
+                                
+                                <button onclick="openFullDiskAccess()" class="onboarding-btn">Open System Settings</button>
+                                
+                                <div class="onboarding-instructions">
+                                    <p>In System Settings:</p>
+                                    <ol>
+                                        <li>Click <strong>Full Disk Access</strong></li>
+                                        <li>Click the <strong>+</strong> button</li>
+                                        <li>Find and add <strong>Aeromessage</strong></li>
+                                        <li>Restart this app</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('app').innerHTML = `
+                        <div class="empty-state">
+                            <h2>Error</h2>
+                            <p>${e}</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function render() {
+            const laterSet = new Set(appState.later);
+            const ignoredSet = new Set(appState.ignored);
+            const total = conversations.length;
+            const remaining = conversations.filter(c => !laterSet.has(c.chat_id)).length;
+            const readyCount = Object.keys(appState.committed).length;
+            const gridCols = Math.ceil(Math.sqrt(total)) || 1;
+
+            document.getElementById('app').innerHTML = `
+                <div class="container">
+                    <div class="left-panel">
+                        <div class="app-header">
+                            <div class="app-logo">
+                                <img src="icon.png" alt="Aeromessage" class="app-icon">
+                                <div class="app-titles">
+                                    <span class="app-name">Aeromessage</span>
+                                    <span class="app-tagline">Inbox Crusher</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid-container">
+                            <div class="grid" id="grid">
+                                ${conversations.map(conv => {
+                                    let cls = 'empty';
+                                    if (ignoredSet.has(conv.chat_identifier)) cls = 'ignored';
+                                    else if (laterSet.has(conv.chat_id)) cls = 'later';
+                                    else if (appState.committed[conv.chat_id]) cls = 'committed';
+                                    else if (appState.drafts[conv.chat_id]) cls = 'draft';
+                                    return `<a class="grid-cell ${cls}" href="#conv-${conv.chat_id}" title="${escapeHtml(conv.resolved_name || conv.display_name || conv.chat_identifier)}"></a>`;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <div class="progress-section">
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: ${remaining > 0 ? (readyCount / remaining * 100) : 100}%"></div>
+                            </div>
+                            <div class="progress-text">${readyCount}/${remaining} ready</div>
+                        </div>
+
+                        <div class="actions">
+                            <button class="btn btn-primary" onclick="sendAll()">Send All</button>
+                            <button class="btn btn-secondary" onclick="refresh()">↻</button>
+                        </div>
+
+                        <div class="keyboard-hints">
+                            <div><kbd>Tab</kbd> Next</div>
+                            <div><kbd>Enter</kbd> Commit</div>
+                            <div><kbd>⌘</kbd><kbd>Enter</kbd> Send all</div>
+                        </div>
+                    </div>
+
+                    <div class="right-panel" id="message-stream-container">
+                        ${conversations.length ? `
+                            <div class="message-stream" id="message-stream">
+                                ${conversations.map(conv => renderConversation(conv, laterSet, ignoredSet)).join('')}
+                            </div>
+                        ` : `
+                            <div class="empty-state">
+                                <h2>Inbox Zero!</h2>
+                                <p>No unread messages. Nice work!</p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+
+            // Re-run layout after render
+            layoutMasonry();
+            setTimeout(layoutMasonry, 100);
+        }
+
+        // 2-column masonry layout
+        function layoutMasonry() {
+            const container = document.getElementById('message-stream');
+            if (!container) return;
+
+            const cards = Array.from(container.querySelectorAll('.conversation'));
+            if (cards.length === 0) return;
+
+            const gap = 10;
+            const containerWidth = container.clientWidth;
+            if (containerWidth === 0) return; // Not ready yet
+            
+            const columnWidth = Math.floor((containerWidth - gap) / 2);
+            const columnHeights = [0, 0];
+
+            cards.forEach(card => {
+                // Find shortest column
+                const col = columnHeights[0] <= columnHeights[1] ? 0 : 1;
+                const x = col * (columnWidth + gap);
+                const y = columnHeights[col];
+
+                card.style.position = 'absolute';
+                card.style.left = x + 'px';
+                card.style.top = y + 'px';
+                card.style.width = columnWidth + 'px';
+
+                columnHeights[col] += card.offsetHeight + gap;
+            });
+
+            // Set container height
+            container.style.height = Math.max(...columnHeights) + 'px';
+        }
+
+        function renderConversation(conv, laterSet, ignoredSet) {
+            const isLater = laterSet.has(conv.chat_id);
+            const isIgnored = ignoredSet.has(conv.chat_identifier);
+            const state = appState.committed[conv.chat_id] ? 'committed' : (appState.drafts[conv.chat_id] ? 'draft' : '');
+            const text = appState.committed[conv.chat_id] || appState.drafts[conv.chat_id] || '';
+            const name = conv.display_name || conv.resolved_name || conv.chat_identifier;
+
+            return `
+                <div class="conversation ${isLater ? 'later' : ''} ${isIgnored ? 'ignored' : ''}" id="conv-${conv.chat_id}">
+                    <div class="conversation-header">
+                        <div class="conversation-title">
+                            <span class="conversation-name">${escapeHtml(name)}</span>
+                            ${conv.style === 43 ? '<span class="group-badge">Group</span>' : ''}
+                        </div>
+                        <div class="conversation-meta">
+                            <span class="unread-badge">${conv.unread_count}</span>
+                            <a class="btn-open" href="${conv.style === 43 ? `imessage://?groupID=${conv.chat_identifier}` : `imessage://${conv.chat_identifier}`}">Open ↗</a>
+                        </div>
+                    </div>
+
+                    <div class="messages">
+                        ${conv.messages.slice(-6).map(msg => renderMessage(msg, conv.style === 43)).join('')}
+                    </div>
+
+                    <div class="reply-section">
+                        <div class="reply-box ${state}">
+                            ${state ? `<span class="state-badge ${state}">${state}</span>` : ''}
+                            <textarea class="reply-input"
+                                      data-chat-id="${conv.chat_id}"
+                                      placeholder="Type a reply..."
+                                      ${isLater ? 'disabled' : ''}
+                                      oninput="handleInput(this)"
+                                      onkeydown="handleKeydown(event, this)">${escapeHtml(text)}</textarea>
+                        </div>
+                        <button class="btn-later ${isLater ? 'active' : ''}" onclick="toggleLater(${conv.chat_id})">Later</button>
+                        <button class="btn-ignore ${isIgnored ? 'active' : ''}" onclick="toggleIgnore('${conv.chat_identifier}', ${conv.chat_id})">Ignore</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMessage(msg, isGroup) {
+            const hasImages = msg.attachments.some(a => a.mime_type.startsWith('image/'));
+            const displayText = msg.text.replace(/\ufffc/g, '').trim();
+            const isImageOnly = hasImages && !displayText;
+
+            return `
+                <div class="message ${msg.is_from_me ? 'from-me' : 'from-them'} ${isImageOnly ? 'image-only' : ''}">
+                    ${isGroup && !msg.is_from_me && msg.sender ? `<div class="message-sender">${escapeHtml(msg.sender)}</div>` : ''}
+                    ${displayText ? linkify(displayText) : ''}
+                    ${hasImages ? `
+                        <div class="message-images">
+                            ${msg.attachments.filter(a => a.mime_type.startsWith('image/')).map(a => {
+                                const url = a.filename.startsWith('~/Library/Messages/Attachments/') 
+                                    ? '/attachment/' + a.filename.slice('~/Library/Messages/Attachments/'.length)
+                                    : '';
+                                return url ? `<img src="${url}" alt="${escapeHtml(a.transfer_name)}" loading="lazy">` : '';
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                    ${msg.reactions.length ? `<span class="reactions">${[...new Set(msg.reactions.map(r => r.emoji))].join('')}</span>` : ''}
+                </div>
+            `;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function linkify(text) {
+            const urlPattern = /(https?:\/\/[^\s<>"']+)/g;
+            return escapeHtml(text).replace(urlPattern, '<a href="$1" target="_blank">$1</a>');
+        }
+
+        async function handleInput(textarea) {
+            const chatId = parseInt(textarea.dataset.chatId);
+            const text = textarea.value.trim();
+
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+
+            delete appState.committed[chatId];
+            if (text) appState.drafts[chatId] = text;
+            else delete appState.drafts[chatId];
+
+            updateInputState(textarea, text ? 'draft' : '');
+            await invoke('save_draft', { chatId, text });
+        }
+
+        async function handleKeydown(event, textarea) {
+            const chatId = parseInt(textarea.dataset.chatId);
+
+            if (event.key === 'Enter' && !event.shiftKey && !event.metaKey) {
+                event.preventDefault();
+                const text = textarea.value.trim();
+                if (text) {
+                    appState.committed[chatId] = text;
+                    delete appState.drafts[chatId];
+                    updateInputState(textarea, 'committed');
+                    await invoke('commit_message', { chatId, text });
+                }
+            }
+
+            if (event.key === 'Enter' && event.metaKey) {
+                event.preventDefault();
+                await sendAll();
+            }
+
+            if (event.key === 'Tab') {
+                event.preventDefault();
+                focusNextInput(chatId, event.shiftKey);
+            }
+        }
+
+        function focusNextInput(currentChatId, reverse = false) {
+            const inputs = Array.from(document.querySelectorAll('.reply-input:not([disabled])'));
+            const currentIdx = inputs.findIndex(el => parseInt(el.dataset.chatId) === currentChatId);
+            if (currentIdx === -1) return;
+
+            const nextIdx = reverse 
+                ? (currentIdx - 1 + inputs.length) % inputs.length
+                : (currentIdx + 1) % inputs.length;
+            
+            const nextInput = inputs[nextIdx];
+            if (nextInput) {
+                const convId = nextInput.dataset.chatId;
+                location.hash = `conv-${convId}`;
+                setTimeout(() => nextInput.focus(), 50);
+            }
+        }
+
+        function updateInputState(textarea, state) {
+            const box = textarea.parentElement;
+            box.classList.remove('draft', 'committed');
+            if (state) box.classList.add(state);
+
+            let badge = box.querySelector('.state-badge');
+            if (state) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'state-badge';
+                    box.insertBefore(badge, textarea);
+                }
+                badge.className = `state-badge ${state}`;
+                badge.textContent = state;
+            } else if (badge) {
+                badge.remove();
+            }
+
+            updateGrid();
+            updateProgress();
+        }
+
+        function updateGrid() {
+            const laterSet = new Set(appState.later);
+            const ignoredSet = new Set(appState.ignored);
+            
+            conversations.forEach(conv => {
+                const cell = document.querySelector(`.grid-cell[href="#conv-${conv.chat_id}"]`);
+                if (!cell) return;
+                
+                cell.classList.remove('empty', 'draft', 'committed', 'later', 'ignored');
+                if (ignoredSet.has(conv.chat_identifier)) cell.classList.add('ignored');
+                else if (laterSet.has(conv.chat_id)) cell.classList.add('later');
+                else if (appState.committed[conv.chat_id]) cell.classList.add('committed');
+                else if (appState.drafts[conv.chat_id]) cell.classList.add('draft');
+                else cell.classList.add('empty');
+            });
+        }
+
+        function updateProgress() {
+            const laterSet = new Set(appState.later);
+            const remaining = conversations.filter(c => !laterSet.has(c.chat_id)).length;
+            const readyCount = Object.keys(appState.committed).length;
+            const pct = remaining > 0 ? (readyCount / remaining * 100) : 100;
+            
+            const bar = document.querySelector('.progress-bar');
+            const text = document.querySelector('.progress-text');
+            if (bar) bar.style.width = pct + '%';
+            if (text) text.textContent = `${readyCount}/${remaining} ready`;
+        }
+
+        async function toggleLater(chatId) {
+            const isLater = await invoke('toggle_later', { chatId });
+            if (isLater) {
+                appState.later.push(chatId);
+                delete appState.drafts[chatId];
+                delete appState.committed[chatId];
+            } else {
+                appState.later = appState.later.filter(id => id !== chatId);
+            }
+            render();
+        }
+
+        async function toggleIgnore(chatIdentifier, chatId) {
+            const isIgnored = await invoke('toggle_ignore', { chatIdentifier });
+            if (isIgnored) {
+                appState.ignored.push(chatIdentifier);
+                delete appState.drafts[chatId];
+                delete appState.committed[chatId];
+            } else {
+                appState.ignored = appState.ignored.filter(id => id !== chatIdentifier);
+            }
+            render();
+        }
+
+        async function sendAll() {
+            const results = await invoke('send_all');
+            if (results.length > 0) {
+                const success = results.filter(r => r.success).length;
+                alert(`Sent ${success}/${results.length} messages`);
+            }
+            await refresh();
+        }
+
+        async function refresh() {
+            await init();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.metaKey) {
+                e.preventDefault();
+                sendAll();
+            }
+        });
+
+        // Re-layout on resize
+        window.addEventListener('resize', layoutMasonry);
+
+        async function openFullDiskAccess() {
+            await invoke('open_full_disk_access');
+        }
+
+        init();
+    </script>
+</body>
+</html>
