@@ -11,4 +11,5 @@ people.tsv
 # Rust/Tauri
 oxidized/target/
 oxidized/Cargo.lock
+oxidized/out/
 *.dmg

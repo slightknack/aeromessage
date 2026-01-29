@@ -7,7 +7,8 @@ echo "Building Aeromessage..."
 npx @tauri-apps/cli build
 
 APP_PATH="target/release/bundle/macos/Aeromessage.app"
-DMG_PATH="target/release/bundle/macos/Aeromessage.dmg"
+OUT_DIR="out"
+DMG_PATH="$OUT_DIR/Aeromessage.dmg"
 
 if [ ! -d "$APP_PATH" ]; then
     echo "Error: Build failed - app not found at $APP_PATH"
@@ -15,6 +16,9 @@ if [ ! -d "$APP_PATH" ]; then
 fi
 
 echo "Build successful: $APP_PATH"
+
+# Create output directory
+mkdir -p "$OUT_DIR"
 
 # Create DMG if create-dmg is available
 if command -v create-dmg &> /dev/null; then
@@ -31,7 +35,8 @@ if command -v create-dmg &> /dev/null; then
         "$APP_PATH"
     echo "DMG created: $DMG_PATH"
 else
-    echo "Note: install create-dmg to generate DMG (brew install create-dmg)"
+    echo "Error: create-dmg not found. Install with: brew install create-dmg"
+    exit 1
 fi
 
 # Install to ~/Applications if requested
