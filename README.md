@@ -19,6 +19,12 @@ A native macOS app for processing your unread messages in one sitting. Draft rep
 Download the latest DMG from [Releases](https://github.com/slightknack/aeromessage/releases), or build from source:
 
 ```sh
+nix run
+```
+
+Or without Nix:
+
+```sh
 cd oxidized
 ./build.sh
 ```
