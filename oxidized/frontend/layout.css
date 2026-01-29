@@ -855,3 +855,26 @@ body {
 .onboarding-instructions strong {
     color: var(--c-dark);
 }
+
+/* === Privacy Mode === */
+.privacy-toggle {
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    margin-left: 4px;
+}
+
+.privacy-toggle:hover {
+    opacity: 1;
+}
+
+.privacy-toggle.active {
+    opacity: 1;
+}
+
+body.privacy-mode .conversation-name,
+body.privacy-mode .message,
+body.privacy-mode .message-sender,
+body.privacy-mode .reply-input {
+    font-family: 'Flow Rounded', sans-serif !important;
+}

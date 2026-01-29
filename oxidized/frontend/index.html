@@ -27,6 +27,7 @@
         let conversations = [];
         let appState = { drafts: {}, committed: {}, later: [], ignored: [] };
         let appVersion = 'v0.1.0';
+        let privacyMode = false;
         
         // Load version from file
         fetch('version.txt')
@@ -152,7 +153,7 @@
                             <div><kbd>Tab</kbd> Next</div>
                             <div><kbd>Enter</kbd> Commit</div>
                             <div><kbd>⌘</kbd><kbd>Enter</kbd> Send all</div>
-                            <div class="version">${appVersion}</div>
+                            <div class="version">${appVersion} <span class="privacy-toggle ${privacyMode ? 'active' : ''}" onclick="togglePrivacy()" title="Privacy mode">&#128065;</span></div>
                         </div>
                     </div>
 
@@ -174,6 +175,9 @@
             // Re-run layout after render
             layoutMasonry();
             setTimeout(layoutMasonry, 100);
+            
+            // Setup parallax scroll
+            setupParallax();
             
             // Load images asynchronously
             loadImages();
@@ -352,9 +356,20 @@
             const chatId = parseInt(textarea.dataset.chatId);
             const text = textarea.value.trim();
 
+            // Only grow if content overflows, reset to 1 line if empty
             const oldHeight = textarea.offsetHeight;
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+            if (!text) {
+                textarea.style.height = '';
+            } else {
+                textarea.style.height = 'auto';
+                const newHeight = Math.min(textarea.scrollHeight, 100);
+                // Only grow, don't shrink below single line (27px from CSS)
+                if (newHeight > 27) {
+                    textarea.style.height = newHeight + 'px';
+                } else {
+                    textarea.style.height = '';
+                }
+            }
             
             // Re-layout if height changed
             if (textarea.offsetHeight !== oldHeight) {
@@ -566,8 +581,30 @@
         // Re-layout on resize
         window.addEventListener('resize', layoutMasonry);
 
+        // Parallax background effect
+        function setupParallax() {
+            const container = document.getElementById('message-stream-container');
+            if (!container) return;
+            container.addEventListener('scroll', () => {
+                const maxScroll = container.scrollHeight - container.clientHeight;
+                if (maxScroll > 0) {
+                    const scrollPercent = container.scrollTop / maxScroll;
+                    const offset = scrollPercent * 10; // 10vh of movement
+                    document.documentElement.style.setProperty('--parallax-offset', `-${offset}vh`);
+                }
+            });
+        }
+
         async function openFullDiskAccess() {
             await invoke('open_full_disk_access');
+        }
+
+        function togglePrivacy() {
+            privacyMode = !privacyMode;
+            document.body.classList.toggle('privacy-mode', privacyMode);
+            // Update toggle button state
+            const toggle = document.querySelector('.privacy-toggle');
+            if (toggle) toggle.classList.toggle('active', privacyMode);
         }
 
         init();
