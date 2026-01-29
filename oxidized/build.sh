@@ -10,11 +10,20 @@ VERSION="0.1.${COMMIT_COUNT}"
 FULL_VERSION="${VERSION}+${COMMIT_HASH}"
 echo "Setting version to ${FULL_VERSION}..."
 
+# Portable sed -i (macOS vs GNU)
+sedi() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "$@"
+    else
+        sed -i "$@"
+    fi
+}
+
 # Update tauri.conf.json (semver only, no hash)
-sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" tauri.conf.json
+sedi "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" tauri.conf.json
 
 # Update Cargo.toml (semver only, no hash)
-sed -i '' "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" Cargo.toml
+sedi "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" Cargo.toml
 
 # Write full version to a file for the frontend
 echo "${FULL_VERSION}" > frontend/version.txt
