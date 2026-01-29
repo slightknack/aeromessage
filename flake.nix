@@ -45,11 +45,21 @@
 
         buildScript = pkgs.writeShellScriptBin "build-aeromessage" ''
           set -e
-          cd "$(dirname "$0")/../oxidized" 2>/dev/null || cd "$1/oxidized" || {
-            echo "Usage: build-aeromessage <path-to-aeromessage-repo>"
-            echo "   or: run from within the aeromessage repo"
+
+          # Find oxidized directory: argument, current dir, or parent dir
+          if [ -n "$1" ] && [ -d "$1/oxidized" ]; then
+            cd "$1/oxidized"
+          elif [ -d "./oxidized" ]; then
+            cd "./oxidized"
+          elif [ -d "../oxidized" ]; then
+            cd "../oxidized"
+          elif [ -f "./Cargo.toml" ] && grep -q "aeromessage" ./Cargo.toml 2>/dev/null; then
+            : # already in oxidized
+          else
+            echo "Error: Could not find aeromessage/oxidized directory"
+            echo "Run from the aeromessage repo root, or pass the path as an argument"
             exit 1
-          }
+          fi
 
           # Auto-bump version based on git commit count and short hash
           COMMIT_COUNT=$(${pkgs.git}/bin/git rev-list --count HEAD 2>/dev/null || echo "0")
