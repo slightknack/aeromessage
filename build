@@ -1,0 +1,19 @@
+#!/bin/bash
+# Build script for People macOS app
+
+set -e
+cd "$(dirname "$0")"
+
+echo "==> Activating virtual environment..."
+source venv/bin/activate
+
+echo "==> Cleaning previous builds..."
+rm -rf out .build .eggs *.egg-info
+
+echo "==> Building app with py2app..."
+python setup.py py2app
+
+echo "==> Cleaning up..."
+rm -rf .build .eggs *.egg-info
+
+echo "==> Done! App is at: out/People.app"

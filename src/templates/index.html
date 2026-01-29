@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbox Crusher</title>
+    <link rel="stylesheet" href="/static/reset.css">
+    <link rel="stylesheet" href="/static/aqua.css">
+    <link rel="stylesheet" href="/static/layout.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        :root {
+            --grid-cols: {{ grid_cols }};
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <div class="app-logo">
+                <img src="/static/icon.png" alt="People" class="app-icon">
+                <span class="app-name">People</span>
+            </div>
+            <div class="logo">Inbox Crusher</div>
+
+            <div class="grid-container">
+                <div class="grid" id="grid">
+                    {% for conv in conversations %}
+                    <a class="grid-cell {% if conv.chat_identifier in ignored %}ignored{% elif conv.chat_id in later %}later{% elif conv.chat_id in committed %}committed{% elif conv.chat_id in drafts %}draft{% else %}empty{% endif %}"
+                       href="#conv-{{ conv.chat_id }}"
+                       data-chat-id="{{ conv.chat_id }}"
+                       data-chat-identifier="{{ conv.chat_identifier }}"
+                       title="{{ conv.name }}"></a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progress-bar" style="width: {{ (ready_count / remaining * 100) if remaining > 0 else 100 }}%"></div>
+                </div>
+                <div class="progress-text" id="progress-text">{{ ready_count }}/{{ remaining }} ready</div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-primary" id="send-btn" onclick="sendAll()">Send All</button>
+                <button class="btn btn-secondary" onclick="refresh()" title="Refresh">↻</button>
+            </div>
+            
+            <div class="keyboard-hints">
+                <div><kbd>Tab</kbd> Next</div>
+                <div><kbd>Enter</kbd> Commit</div>
+                <div><kbd>⌘</kbd><kbd>Enter</kbd> Send all</div>
+            </div>
+        </div>
+
+        <div class="right-panel" id="message-stream-container">
+            {% if conversations %}
+            <div class="message-stream" id="message-stream">
+                {% for conv in conversations %}
+                {% set is_ignored = conv.chat_identifier in ignored %}
+                <div class="conversation {% if is_ignored %}ignored{% elif conv.chat_id in later %}later{% endif %}"
+                     id="conv-{{ conv.chat_id }}"
+                     data-chat-id="{{ conv.chat_id }}"
+                     data-chat-identifier="{{ conv.chat_identifier }}">
+
+                    {# Collapsed view (shown when ignored) #}
+                    <div class="conversation-collapsed">
+                        <div class="conversation-title">
+                            <span class="conversation-name">{{ conv.name }}</span>
+                            <span class="unread-badge">{{ conv.unread_count }}</span>
+                        </div>
+                        <div class="conversation-actions">
+                            <a class="btn-open" href="{{ conv.messages_url }}" title="Open in Messages">Open ↗</a>
+                            <button class="btn-later {% if conv.chat_id in later %}active{% endif %}"
+                                    data-chat-id="{{ conv.chat_id }}"
+                                    onclick="toggleLater({{ conv.chat_id }})">Later</button>
+                            <button class="btn-ignore {% if is_ignored %}active{% endif %}"
+                                    data-chat-identifier="{{ conv.chat_identifier }}"
+                                    onclick="toggleIgnore('{{ conv.chat_identifier }}', {{ conv.chat_id }})">Ignore</button>
+                        </div>
+                    </div>
+
+                    {# Full view (shown when not ignored) #}
+                    <div class="conversation-full">
+                        <div class="conversation-header">
+                            <div class="conversation-title">
+                                <span class="conversation-name">{{ conv.name }}</span>
+                                {% if conv.is_group %}<span class="group-badge">Group</span>{% endif %}
+                            </div>
+                            <div class="conversation-meta">
+                                <span class="unread-badge">{{ conv.unread_count }}</span>
+                                <span>{{ conv.last_message_date.strftime('%b %d') }}</span>
+                                <a class="btn-open" href="{{ conv.messages_url }}" title="Open in Messages">Open ↗</a>
+                            </div>
+                        </div>
+
+                        <div class="messages">
+                            {% for msg in conv.messages[-6:] %}
+                            <div class="message {% if msg.is_from_me %}from-me{% else %}from-them{% endif %}{% if msg.is_image_only %} image-only{% endif %}">
+                                {% if conv.is_group and not msg.is_from_me and msg.sender %}
+                                <div class="message-sender">{{ msg.sender }}</div>
+                                {% endif %}
+                                {% if msg.display_text %}{{ msg.display_text | linkify }}{% endif %}
+                                {% set images = msg.attachments | selectattr('is_image') | selectattr('url') | list %}
+                                {% if images %}
+                                <div class="message-images">
+                                    {% for att in images %}
+                                    <img src="{{ att.url }}" alt="{{ att.transfer_name }}" loading="lazy">
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if msg.reactions %}
+                                <span class="reactions">{{ msg.reaction_summary }}</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="reply-section">
+                            {% set state = 'committed' if conv.chat_id in committed else ('draft' if conv.chat_id in drafts else '') %}
+                            <div class="reply-box {{ state }}">
+                                {% if state %}<span class="state-badge {{ state }}">{{ state }}</span>{% endif %}
+                                <textarea class="reply-input"
+                                          id="input-{{ conv.chat_id }}"
+                                          data-chat-id="{{ conv.chat_id }}"
+                                          placeholder="Type a reply..."
+                                          rows="1"
+                                          {% if conv.chat_id in later %}disabled{% endif %}
+                                          oninput="handleInput(this)"
+                                          onkeydown="handleKeydown(event, this)">{{ committed.get(conv.chat_id, drafts.get(conv.chat_id, '')) }}</textarea>
+                            </div>
+                            <button class="btn-later {% if conv.chat_id in later %}active{% endif %}"
+                                    data-chat-id="{{ conv.chat_id }}"
+                                    onclick="toggleLater({{ conv.chat_id }})">Later</button>
+                            <button class="btn-ignore {% if is_ignored %}active{% endif %}"
+                                    data-chat-identifier="{{ conv.chat_identifier }}"
+                                    onclick="toggleIgnore('{{ conv.chat_identifier }}', {{ conv.chat_id }})">Ignore</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <h2>Inbox Zero!</h2>
+                <p>No unread messages. Nice work!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        let chatIds = [{% for conv in conversations %}{{ conv.chat_id }}{% if not loop.last %}, {% endif %}{% endfor %}];
+        let laterSet = new Set([{% for cid in later %}{{ cid }}{% if not loop.last %}, {% endif %}{% endfor %}]);
+        let ignoredChatIds = new Set([{% for conv in conversations %}{% if conv.chat_identifier in ignored %}{{ conv.chat_id }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}]);
+        let drafts = { {% for cid, text in drafts.items() %}{{ cid }}: {{ text | tojson }}{% if not loop.last %}, {% endif %}{% endfor %} };
+        let committed = { {% for cid, text in committed.items() %}{{ cid }}: {{ text | tojson }}{% if not loop.last %}, {% endif %}{% endfor %} };
+
+        function handleInput(textarea) {
+            const chatId = parseInt(textarea.dataset.chatId);
+            const text = textarea.value.trim();
+
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+
+            if (committed[chatId]) delete committed[chatId];
+            if (text) drafts[chatId] = text;
+            else delete drafts[chatId];
+
+            updateInputState(chatId, text ? 'draft' : '');
+            updateGrid();
+            updateProgress();
+
+            fetch('/api/draft', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, text: text })
+            });
+        }
+
+        function handleKeydown(event, textarea) {
+            const chatId = parseInt(textarea.dataset.chatId);
+
+            if (event.key === 'Enter' && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+                event.preventDefault();
+                const text = textarea.value.trim();
+
+                if (text) {
+                    committed[chatId] = text;
+                    delete drafts[chatId];
+                    updateInputState(chatId, 'committed');
+                    updateGrid();
+                    updateProgress();
+
+                    fetch('/api/commit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: chatId, text: text })
+                    });
+                }
+                // Don't auto-advance to next message
+            }
+
+            if (event.key === 'Tab' && !event.shiftKey) {
+                event.preventDefault();
+                focusNext(chatId);
+            }
+
+            if (event.key === 'Tab' && event.shiftKey) {
+                event.preventDefault();
+                focusPrev(chatId);
+            }
+
+            if (event.key === 'Escape') {
+                textarea.value = '';
+                handleInput(textarea);
+            }
+
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                sendAll();
+            }
+        }
+
+        function focusNext(currentChatId) {
+            const currentIndex = chatIds.indexOf(currentChatId);
+            for (let i = 1; i <= chatIds.length; i++) {
+                const nextId = chatIds[(currentIndex + i) % chatIds.length];
+                if (laterSet.has(nextId)) continue;
+                if (ignoredChatIds.has(nextId)) continue;
+                if (!committed[nextId]) {
+                    location.hash = `conv-${nextId}`;
+                    setTimeout(() => document.getElementById(`input-${nextId}`)?.focus(), 100);
+                    return;
+                }
+            }
+        }
+
+        function focusPrev(currentChatId) {
+            const currentIndex = chatIds.indexOf(currentChatId);
+            for (let i = 1; i <= chatIds.length; i++) {
+                const prevId = chatIds[(currentIndex - i + chatIds.length) % chatIds.length];
+                if (laterSet.has(prevId)) continue;
+                if (ignoredChatIds.has(prevId)) continue;
+                if (!committed[prevId]) {
+                    location.hash = `conv-${prevId}`;
+                    setTimeout(() => document.getElementById(`input-${prevId}`)?.focus(), 100);
+                    return;
+                }
+            }
+        }
+
+        function updateInputState(chatId, state) {
+            const input = document.getElementById(`input-${chatId}`);
+            const box = input.parentElement;
+
+            box.classList.remove('draft', 'committed');
+            if (state) box.classList.add(state);
+
+            let badge = box.querySelector('.state-badge');
+            if (state) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'state-badge';
+                    box.insertBefore(badge, input);
+                }
+                badge.className = `state-badge ${state}`;
+                badge.textContent = state;
+            } else if (badge) {
+                badge.remove();
+            }
+        }
+
+        function updateGrid() {
+            chatIds.forEach(chatId => {
+                const cell = document.querySelector(`.grid-cell[data-chat-id="${chatId}"]`);
+                if (cell) {
+                    cell.classList.remove('empty', 'draft', 'committed', 'later');
+                    if (laterSet.has(chatId)) cell.classList.add('later');
+                    else if (committed[chatId]) cell.classList.add('committed');
+                    else if (drafts[chatId]) cell.classList.add('draft');
+                    else cell.classList.add('empty');
+                }
+            });
+        }
+
+        function updateProgress() {
+            const remaining = chatIds.filter(id => !laterSet.has(id)).length;
+            const ready = Object.keys(committed).filter(id => !laterSet.has(parseInt(id))).length;
+
+            const pct = remaining > 0 ? (ready / remaining * 100) : 100;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+            document.getElementById('progress-text').textContent = `${ready}/${remaining} ready`;
+            // Button always enabled for partial sends
+        }
+
+        function toggleLater(chatId) {
+            fetch('/api/later', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const conv = document.getElementById(`conv-${chatId}`);
+                const btn = conv.querySelector('.btn-later');
+                const input = document.getElementById(`input-${chatId}`);
+
+                if (data.is_later) {
+                    laterSet.add(chatId);
+                    conv.classList.add('later');
+                    btn.classList.add('active');
+                    input.disabled = true;
+                    delete drafts[chatId];
+                    delete committed[chatId];
+                } else {
+                    laterSet.delete(chatId);
+                    conv.classList.remove('later');
+                    btn.classList.remove('active');
+                    input.disabled = false;
+                }
+                updateGrid();
+                updateProgress();
+            });
+        }
+
+        function toggleIgnore(chatIdentifier, chatId) {
+            fetch('/api/ignore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_identifier: chatIdentifier })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const conv = document.getElementById(`conv-${chatId}`);
+                const btn = conv.querySelector('.btn-ignore');
+                const input = document.getElementById(`input-${chatId}`);
+                const cell = document.querySelector(`.grid-cell[data-chat-id="${chatId}"]`);
+
+                if (data.is_ignored) {
+                    conv.classList.add('ignored');
+                    btn.classList.add('active');
+                    input.disabled = true;
+                    if (cell) cell.classList.add('ignored');
+                    ignoredChatIds.add(chatId);
+                    delete drafts[chatId];
+                    delete committed[chatId];
+                } else {
+                    conv.classList.remove('ignored');
+                    btn.classList.remove('active');
+                    input.disabled = false;
+                    if (cell) cell.classList.remove('ignored');
+                    ignoredChatIds.delete(chatId);
+                }
+                updateGrid();
+                updateProgress();
+            });
+        }
+
+        let sending = false;
+        async function sendAll() {
+            if (sending) return;
+            sending = true;
+
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.textContent = 'Sending...';
+            sendBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/send-all', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const data = await res.json();
+                const success = data.results.filter(r => r.success).length;
+                const total = data.results.length;
+                if (total > 0) alert(`Sent ${success}/${total} messages`);
+                await refresh();
+            } catch (e) {
+                alert('Error sending messages');
+                sendBtn.textContent = 'Send All';
+                sendBtn.disabled = false;
+                sending = false;
+            }
+        }
+
+        function forceSend() {
+            if (Object.keys(committed).length > 0) sendAll();
+            else alert('No messages to send');
+        }
+
+        async function refresh() {
+            await fetch('/api/refresh', { method: 'POST' });
+            window.location.reload();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                sendAll();
+            }
+        });
+
+        // Parallax background effect
+        const rightPanel = document.getElementById('message-stream-container');
+        rightPanel.addEventListener('scroll', () => {
+            const scrollPercent = rightPanel.scrollTop / (rightPanel.scrollHeight - rightPanel.clientHeight);
+            const offset = scrollPercent * 10; // 10vh of movement
+            document.documentElement.style.setProperty('--parallax-offset', `-${offset}vh`);
+        });
+    </script>
+</body>
+</html>

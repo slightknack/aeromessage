@@ -1,0 +1,9 @@
+.*
+!.gitignore
+__pycache__/
+venv/
+out/
+*.pyc
+*.egg-info/
+.eggs/
+people.tsv
