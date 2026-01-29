@@ -14,12 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            arch: 'arm64'
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-            arch: 'x64'
+          - platform: "macos-latest"
+            args: "--target aarch64-apple-darwin"
+            arch: "arm64"
+          - platform: "macos-latest"
+            args: "--target x86_64-apple-darwin"
+            arch: "x64"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -33,10 +33,22 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './oxidized -> target'
+          workspaces: "./oxidized -> target"
 
       - name: Install create-dmg
         run: brew install create-dmg
+
+      - name: Set version from commit count
+        working-directory: oxidized
+        run: |
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          VERSION="0.1.${COMMIT_COUNT}"
+          FULL_VERSION="${VERSION}+${COMMIT_HASH}"
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" tauri.conf.json
+          sed -i '' "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" Cargo.toml
+          echo "${FULL_VERSION}" > frontend/version.txt
 
       - name: Build Tauri app
         working-directory: oxidized
@@ -77,10 +89,11 @@ jobs:
         with:
           path: artifacts
 
-      - name: Get version
+      - name: Get version from commit count
         id: version
         run: |
-          VERSION=$(jq -r .version oxidized/tauri.conf.json)
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          VERSION="0.1.${COMMIT_COUNT}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create or update release

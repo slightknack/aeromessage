@@ -26,6 +26,13 @@
 
         let conversations = [];
         let appState = { drafts: {}, committed: {}, later: [], ignored: [] };
+        let appVersion = 'v0.1.0';
+        
+        // Load version from file
+        fetch('version.txt')
+            .then(r => r.text())
+            .then(v => { appVersion = 'v' + v.trim(); })
+            .catch(() => {});
 
         async function init() {
             try {
@@ -145,7 +152,7 @@
                             <div><kbd>Tab</kbd> Next</div>
                             <div><kbd>Enter</kbd> Commit</div>
                             <div><kbd>⌘</kbd><kbd>Enter</kbd> Send all</div>
-                            <div class="version">v0.1.0</div>
+                            <div class="version">${appVersion}</div>
                         </div>
                     </div>
 
@@ -332,8 +339,8 @@
         async function openExternal(event, url) {
             event.preventDefault();
             try {
-                // Tauri v2 plugin API
-                await window.__TAURI__.invoke('plugin:shell|open', { path: url });
+                // Use Rust command to open URL
+                await invoke('open_url', { url });
             } catch (e) {
                 console.error('Failed to open URL:', e);
                 // Fallback: try opening in webview
@@ -471,11 +478,20 @@
                 appState.later = appState.later.filter(id => id !== chatId);
             }
             
-            // Preserve scroll position
-            const container = document.getElementById('message-stream-container');
-            const scrollTop = container ? container.scrollTop : 0;
-            render();
-            if (container) container.scrollTop = scrollTop;
+            // Update just this conversation card instead of full re-render
+            const conv = conversations.find(c => c.chat_id === chatId);
+            if (conv) {
+                const laterSet = new Set(appState.later);
+                const ignoredSet = new Set(appState.ignored);
+                const oldCard = document.getElementById(`conv-${chatId}`);
+                if (oldCard) {
+                    const newHtml = renderConversation(conv, laterSet, ignoredSet);
+                    oldCard.outerHTML = newHtml;
+                    layoutMasonry();
+                }
+            }
+            updateGrid();
+            updateProgress();
         }
 
         async function toggleIgnore(chatIdentifier, chatId) {
@@ -494,11 +510,20 @@
                 appState.ignored = appState.ignored.filter(id => id !== chatIdentifier);
             }
             
-            // Preserve scroll position
-            const container = document.getElementById('message-stream-container');
-            const scrollTop = container ? container.scrollTop : 0;
-            render();
-            if (container) container.scrollTop = scrollTop;
+            // Update just this conversation card instead of full re-render
+            const conv = conversations.find(c => c.chat_id === chatId);
+            if (conv) {
+                const laterSet = new Set(appState.later);
+                const ignoredSet = new Set(appState.ignored);
+                const oldCard = document.getElementById(`conv-${chatId}`);
+                if (oldCard) {
+                    const newHtml = renderConversation(conv, laterSet, ignoredSet);
+                    oldCard.outerHTML = newHtml;
+                    layoutMasonry();
+                }
+            }
+            updateGrid();
+            updateProgress();
         }
 
         async function markRead(chatIdentifier, chatId) {

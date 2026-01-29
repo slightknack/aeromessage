@@ -208,6 +208,20 @@ fn open_full_disk_access() -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
 fn load_contacts(state: State<AppState>) -> Result<usize, String> {
     let mut contacts = state.contacts.lock().map_err(|e| e.to_string())?;
     contacts.load_macos_contacts()
@@ -274,7 +288,9 @@ fn main() {
             send_all,
             mark_read,
             get_state,
+            get_version,
             open_full_disk_access,
+            open_url,
             load_contacts,
             get_attachment,
         ])

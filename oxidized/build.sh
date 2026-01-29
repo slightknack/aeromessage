@@ -3,6 +3,22 @@ set -e
 
 cd "$(dirname "$0")"
 
+# Auto-bump version based on git commit count and short hash
+COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION="0.1.${COMMIT_COUNT}"
+FULL_VERSION="${VERSION}+${COMMIT_HASH}"
+echo "Setting version to ${FULL_VERSION}..."
+
+# Update tauri.conf.json (semver only, no hash)
+sed -i '' "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" tauri.conf.json
+
+# Update Cargo.toml (semver only, no hash)
+sed -i '' "s/^version = \"[^\"]*\"/version = \"${VERSION}\"/" Cargo.toml
+
+# Write full version to a file for the frontend
+echo "${FULL_VERSION}" > frontend/version.txt
+
 echo "Cleaning previous build..."
 rm -rf target/release/bundle
 
