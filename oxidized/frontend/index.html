@@ -145,6 +145,7 @@
                             <div><kbd>Tab</kbd> Next</div>
                             <div><kbd>Enter</kbd> Commit</div>
                             <div><kbd>⌘</kbd><kbd>Enter</kbd> Send all</div>
+                            <div class="version">v0.1.0</div>
                         </div>
                     </div>
 
@@ -166,6 +167,9 @@
             // Re-run layout after render
             layoutMasonry();
             setTimeout(layoutMasonry, 100);
+            
+            // Load images asynchronously
+            loadImages();
         }
 
         // 2-column masonry layout
@@ -208,8 +212,29 @@
             const text = appState.committed[conv.chat_id] || appState.drafts[conv.chat_id] || '';
             const name = conv.display_name || conv.resolved_name || conv.chat_identifier;
 
+            if (isIgnored) {
+                // Collapsed view for ignored conversations
+                return `
+                    <div class="conversation ignored" id="conv-${conv.chat_id}">
+                        <div class="conversation-collapsed">
+                            <div class="conversation-title">
+                                <span class="conversation-name">${escapeHtml(name)}</span>
+                                ${conv.style === 43 ? '<span class="group-badge">Group</span>' : ''}
+                                <span class="unread-badge">${conv.unread_count}</span>
+                            </div>
+                            <div class="conversation-actions">
+                                <a class="btn-open" href="${conv.style === 43 ? `imessage://?groupID=${conv.chat_identifier}` : `imessage://${conv.chat_identifier}`}">Open ↗</a>
+                                <button class="btn-read" onclick="markRead('${conv.chat_identifier}', ${conv.chat_id})">Read</button>
+                                <button class="btn-later" onclick="toggleLater(${conv.chat_id}, '${conv.chat_identifier}')">Later</button>
+                                <button class="btn-ignore active" onclick="toggleIgnore('${conv.chat_identifier}', ${conv.chat_id})">Ignore</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
             return `
-                <div class="conversation ${isLater ? 'later' : ''} ${isIgnored ? 'ignored' : ''}" id="conv-${conv.chat_id}">
+                <div class="conversation ${isLater ? 'later' : ''}" id="conv-${conv.chat_id}">
                     <div class="conversation-header">
                         <div class="conversation-title">
                             <span class="conversation-name">${escapeHtml(name)}</span>
@@ -235,8 +260,9 @@
                                       oninput="handleInput(this)"
                                       onkeydown="handleKeydown(event, this)">${escapeHtml(text)}</textarea>
                         </div>
-                        <button class="btn-later ${isLater ? 'active' : ''}" onclick="toggleLater(${conv.chat_id})">Later</button>
-                        <button class="btn-ignore ${isIgnored ? 'active' : ''}" onclick="toggleIgnore('${conv.chat_identifier}', ${conv.chat_id})">Ignore</button>
+                        <button class="btn-read" onclick="markRead('${conv.chat_identifier}', ${conv.chat_id})">Read</button>
+                        <button class="btn-later ${isLater ? 'active' : ''}" onclick="toggleLater(${conv.chat_id}, '${conv.chat_identifier}')">Later</button>
+                        <button class="btn-ignore" onclick="toggleIgnore('${conv.chat_identifier}', ${conv.chat_id})">Ignore</button>
                     </div>
                 </div>
             `;
@@ -254,16 +280,33 @@
                     ${hasImages ? `
                         <div class="message-images">
                             ${msg.attachments.filter(a => a.mime_type.startsWith('image/')).map(a => {
-                                const url = a.filename.startsWith('~/Library/Messages/Attachments/') 
-                                    ? '/attachment/' + a.filename.slice('~/Library/Messages/Attachments/'.length)
+                                const path = a.filename.startsWith('~/Library/Messages/Attachments/') 
+                                    ? a.filename.slice('~/Library/Messages/Attachments/'.length)
                                     : '';
-                                return url ? `<img src="${url}" alt="${escapeHtml(a.transfer_name)}" loading="lazy">` : '';
+                                return path ? `<img data-attachment-path="${escapeHtml(path)}" alt="${escapeHtml(a.transfer_name)}" loading="lazy">` : '';
                             }).join('')}
                         </div>
                     ` : ''}
                     ${msg.reactions.length ? `<span class="reactions">${[...new Set(msg.reactions.map(r => r.emoji))].join('')}</span>` : ''}
                 </div>
             `;
+        }
+
+        async function loadImages() {
+            const images = document.querySelectorAll('img[data-attachment-path]');
+            for (const img of images) {
+                const path = img.dataset.attachmentPath;
+                if (!path || img.src) continue;
+                try {
+                    const data = await invoke('get_attachment', { path });
+                    const blob = new Blob([new Uint8Array(data)], { type: 'image/jpeg' });
+                    img.src = URL.createObjectURL(blob);
+                    img.onload = () => layoutMasonry();
+                } catch (e) {
+                    console.warn('Failed to load image:', path, e);
+                    img.style.display = 'none';
+                }
+            }
         }
 
         function escapeHtml(str) {
@@ -273,15 +316,43 @@
 
         function linkify(text) {
             const urlPattern = /(https?:\/\/[^\s<>"']+)/g;
-            return escapeHtml(text).replace(urlPattern, '<a href="$1" target="_blank">$1</a>');
+            return escapeHtml(text).replace(urlPattern, (url) => {
+                // Trim long URLs for display
+                let display = url;
+                try {
+                    const parsed = new URL(url);
+                    display = parsed.hostname + (parsed.pathname.length > 20 ? parsed.pathname.slice(0, 20) + '...' : parsed.pathname);
+                } catch (e) {
+                    if (url.length > 40) display = url.slice(0, 40) + '...';
+                }
+                return `<a href="${url}" target="_blank" onclick="openExternal(event, '${url}')">${display}</a>`;
+            });
+        }
+
+        async function openExternal(event, url) {
+            event.preventDefault();
+            try {
+                // Tauri v2 plugin API
+                await window.__TAURI__.invoke('plugin:shell|open', { path: url });
+            } catch (e) {
+                console.error('Failed to open URL:', e);
+                // Fallback: try opening in webview
+                window.open(url, '_blank');
+            }
         }
 
         async function handleInput(textarea) {
             const chatId = parseInt(textarea.dataset.chatId);
             const text = textarea.value.trim();
 
+            const oldHeight = textarea.offsetHeight;
             textarea.style.height = 'auto';
             textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+            
+            // Re-layout if height changed
+            if (textarea.offsetHeight !== oldHeight) {
+                layoutMasonry();
+            }
 
             delete appState.committed[chatId];
             if (text) appState.drafts[chatId] = text;
@@ -384,7 +455,13 @@
             if (text) text.textContent = `${readyCount}/${remaining} ready`;
         }
 
-        async function toggleLater(chatId) {
+        async function toggleLater(chatId, chatIdentifier) {
+            // If ignored, un-ignore first
+            if (appState.ignored.includes(chatIdentifier)) {
+                await invoke('toggle_ignore', { chatIdentifier });
+                appState.ignored = appState.ignored.filter(id => id !== chatIdentifier);
+            }
+            
             const isLater = await invoke('toggle_later', { chatId });
             if (isLater) {
                 appState.later.push(chatId);
@@ -393,10 +470,21 @@
             } else {
                 appState.later = appState.later.filter(id => id !== chatId);
             }
+            
+            // Preserve scroll position
+            const container = document.getElementById('message-stream-container');
+            const scrollTop = container ? container.scrollTop : 0;
             render();
+            if (container) container.scrollTop = scrollTop;
         }
 
         async function toggleIgnore(chatIdentifier, chatId) {
+            // If later, un-later first
+            if (appState.later.includes(chatId)) {
+                await invoke('toggle_later', { chatId });
+                appState.later = appState.later.filter(id => id !== chatId);
+            }
+            
             const isIgnored = await invoke('toggle_ignore', { chatIdentifier });
             if (isIgnored) {
                 appState.ignored.push(chatIdentifier);
@@ -405,7 +493,29 @@
             } else {
                 appState.ignored = appState.ignored.filter(id => id !== chatIdentifier);
             }
+            
+            // Preserve scroll position
+            const container = document.getElementById('message-stream-container');
+            const scrollTop = container ? container.scrollTop : 0;
             render();
+            if (container) container.scrollTop = scrollTop;
+        }
+
+        async function markRead(chatIdentifier, chatId) {
+            try {
+                await invoke('mark_read', { chatIdentifier });
+                // Remove from local state
+                delete appState.drafts[chatId];
+                delete appState.committed[chatId];
+                appState.later = appState.later.filter(id => id !== chatId);
+                appState.ignored = appState.ignored.filter(id => id !== chatIdentifier);
+                // Remove conversation from list
+                conversations = conversations.filter(c => c.chat_id !== chatId);
+                render();
+                layoutMasonry();
+            } catch (e) {
+                console.error('Failed to mark as read:', e);
+            }
         }
 
         async function sendAll() {

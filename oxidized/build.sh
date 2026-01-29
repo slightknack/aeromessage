@@ -3,6 +3,9 @@ set -e
 
 cd "$(dirname "$0")"
 
+echo "Cleaning previous build..."
+rm -rf target/release/bundle
+
 echo "Building Aeromessage..."
 npx @tauri-apps/cli build
 

@@ -307,6 +307,29 @@ impl Database {
     }
 }
 
+/// Mark all messages in a chat as read.
+/// This opens a separate write connection since the main Database is read-only.
+pub fn mark_as_read(chat_identifier: &str) -> Result<usize, DbError> {
+    let path = Database::default_path();
+    let conn = Connection::open_with_flags(
+        &path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    
+    let affected = conn.execute(
+        "UPDATE message SET is_read = 1
+         WHERE ROWID IN (
+             SELECT m.ROWID FROM message m
+             JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
+             JOIN chat c ON cmj.chat_id = c.ROWID
+             WHERE c.chat_identifier = ? AND m.is_read = 0
+         )",
+        [chat_identifier],
+    )?;
+    
+    Ok(affected)
+}
+
 /// Parse text from attributedBody blob.
 fn parse_attributed_body(blob: &[u8]) -> Option<String> {
     // Find NSString marker

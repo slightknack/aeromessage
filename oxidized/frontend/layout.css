@@ -66,11 +66,25 @@ body {
     box-shadow: 0 1px 3px var(--alpha-black-15);
 }
 
+.app-titles {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
 .app-name {
     font-family: var(--font-serif);
     font-size: var(--text-serif-lg);
     font-weight: 600;
     color: var(--c-dark);
+}
+
+.app-tagline {
+    font-family: var(--font-serif);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--c-gray);
+    letter-spacing: 0.3px;
 }
 
 .logo {
@@ -95,8 +109,8 @@ body {
 }
 
 .grid-cell {
-    width: 10px;
-    height: 10px;
+    width: 14px;
+    height: 14px;
     display: block;
     position: relative;
     border-radius: 2px;
@@ -255,6 +269,14 @@ body {
 
 .keyboard-hints div:last-child {
     margin-bottom: 0;
+}
+
+.keyboard-hints .version {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--alpha-black-10);
+    color: var(--c-silver);
+    font-size: 9px;
 }
 
 /* === Right Panel === */
@@ -602,6 +624,7 @@ body {
 }
 
 /* === Later/Ignore Buttons === */
+.btn-read,
 .btn-later,
 .btn-ignore {
     position: relative;
@@ -625,6 +648,7 @@ body {
     text-shadow: none !important;
 }
 
+.btn-read::before,
 .btn-later::before,
 .btn-ignore::before {
     content: "";
@@ -638,11 +662,13 @@ body {
     pointer-events: none;
 }
 
+.btn-read::after,
 .btn-later::after,
 .btn-ignore::after {
     display: none;
 }
 
+.btn-read:hover,
 .btn-later:hover,
 .btn-ignore:hover {
     background: linear-gradient(to bottom, var(--c-white), var(--c-offwhite)) !important;
@@ -663,36 +689,33 @@ body {
     background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
 }
 
-/* === Collapsed/Full View Toggle === */
+/* === Collapsed View (Ignored) === */
 .conversation-collapsed {
-    display: none;
-}
-
-.conversation-full {
-    display: block;
-}
-
-.conversation.ignored .conversation-collapsed {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 12px;
 }
 
-.conversation.ignored .conversation-full {
-    display: none;
-}
-
 .conversation-collapsed .conversation-title {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.conversation-collapsed .conversation-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .conversation-collapsed .conversation-actions {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 /* === Empty State === */

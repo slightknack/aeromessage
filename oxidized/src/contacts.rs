@@ -42,54 +42,107 @@ impl ContactResolver {
         }
     }
 
-    /// Load contacts from macOS Contacts using AppleScript.
+    /// Load contacts from macOS AddressBook database.
     pub fn load_macos_contacts(&mut self) -> Result<usize, String> {
-        use std::process::Command;
+        use rusqlite::{Connection, OpenFlags};
+        use std::path::PathBuf;
         
-        let script = r#"
-            set output to ""
-            tell application "Contacts"
-                repeat with p in every person
-                    set pName to name of p
-                    repeat with ph in phones of p
-                        set output to output & pName & "	" & value of ph & linefeed
-                    end repeat
-                    repeat with em in emails of p
-                        set output to output & pName & "	" & value of em & linefeed
-                    end repeat
-                end repeat
-            end tell
-            return output
-        "#;
+        // Find AddressBook database
+        let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+        let sources_dir = home.join("Library/Application Support/AddressBook/Sources");
         
-        let output = Command::new("osascript")
-            .arg("-e")
-            .arg(script)
-            .output()
-            .map_err(|e| format!("Failed to run osascript: {}", e))?;
-        
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("AppleScript error: {}", stderr));
+        if !sources_dir.exists() {
+            return Err("AddressBook sources directory not found".to_string());
         }
         
-        let stdout = String::from_utf8_lossy(&output.stdout);
         let mut count = 0;
         
-        for line in stdout.lines() {
-            let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() >= 2 {
-                let name = parts[0].trim();
-                let identifier = parts[1].trim();
-                if !name.is_empty() && !identifier.is_empty() {
-                    // Add both raw and normalized versions
-                    self.add(identifier, name);
-                    let normalized = normalize_phone(identifier);
-                    if normalized != identifier {
-                        self.add(&normalized, name);
-                    }
-                    count += 1;
+        // Iterate through all source directories
+        let entries = std::fs::read_dir(&sources_dir)
+            .map_err(|e| format!("Cannot read sources dir: {}", e))?;
+        
+        for entry in entries.flatten() {
+            let db_path = entry.path().join("AddressBook-v22.abcddb");
+            if !db_path.exists() {
+                continue;
+            }
+            
+            count += self.load_from_addressbook_db(&db_path)?;
+        }
+        
+        Ok(count)
+    }
+    
+    fn load_from_addressbook_db(&mut self, db_path: &std::path::Path) -> Result<usize, String> {
+        use rusqlite::{Connection, OpenFlags};
+        
+        let conn = Connection::open_with_flags(
+            db_path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        ).map_err(|e| format!("Cannot open AddressBook: {}", e))?;
+        
+        let mut count = 0;
+        
+        // Load phone numbers
+        let mut stmt = conn.prepare(
+            "SELECT 
+                COALESCE(r.ZFIRSTNAME, '') || ' ' || COALESCE(r.ZLASTNAME, '') as name,
+                p.ZFULLNUMBER
+            FROM ZABCDRECORD r
+            JOIN ZABCDPHONENUMBER p ON r.Z_PK = p.ZOWNER
+            WHERE (r.ZFIRSTNAME IS NOT NULL OR r.ZLASTNAME IS NOT NULL)
+              AND p.ZFULLNUMBER IS NOT NULL"
+        ).map_err(|e| format!("SQL error: {}", e))?;
+        
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+            ))
+        }).map_err(|e| format!("Query error: {}", e))?;
+        
+        for row in rows.flatten() {
+            let (name, phone) = row;
+            let name = name.trim();
+            if !name.is_empty() && name != " " {
+                self.add(&phone, name);
+                let normalized = normalize_phone(&phone);
+                if normalized != phone {
+                    self.add(&normalized, name);
                 }
+                count += 1;
+            }
+        }
+        
+        // Load email addresses
+        let mut stmt = conn.prepare(
+            "SELECT 
+                COALESCE(r.ZFIRSTNAME, '') || ' ' || COALESCE(r.ZLASTNAME, '') as name,
+                e.ZADDRESSNORMALIZED
+            FROM ZABCDRECORD r
+            JOIN ZABCDEMAILADDRESS e ON r.Z_PK = e.ZOWNER
+            WHERE (r.ZFIRSTNAME IS NOT NULL OR r.ZLASTNAME IS NOT NULL)
+              AND e.ZADDRESSNORMALIZED IS NOT NULL"
+        ).map_err(|e| format!("SQL error: {}", e))?;
+        
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+            ))
+        }).map_err(|e| format!("Query error: {}", e))?;
+        
+        for row in rows.flatten() {
+            let (name, email) = row;
+            let name = name.trim();
+            if !name.is_empty() && name != " " {
+                self.add(&email, name);
+                // Also add lowercase version
+                let lower = email.to_lowercase();
+                if lower != email {
+                    self.add(&lower, name);
+                }
+                count += 1;
             }
         }
         

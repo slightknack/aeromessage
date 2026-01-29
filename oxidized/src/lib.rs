@@ -7,7 +7,7 @@ mod models;
 mod contacts;
 mod send;
 
-pub use db::Database;
+pub use db::{Database, mark_as_read};
 pub use models::{Conversation, Message, Attachment, Reaction};
 pub use contacts::ContactResolver;
 pub use send::send_message;

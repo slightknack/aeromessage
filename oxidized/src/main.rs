@@ -2,7 +2,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use aeromessage::{Database, Conversation, ContactResolver, send_message};
+use aeromessage::{Database, Conversation, ContactResolver, send_message, mark_as_read};
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::process::Command;
@@ -38,9 +38,24 @@ fn get_conversations(state: State<AppState>) -> Result<Vec<Conversation>, String
     // Resolve contact names
     let contacts = state.contacts.lock().map_err(|e| e.to_string())?;
     for conv in &mut convs {
-        if conv.display_name.is_none() {
-            if let Some(name) = contacts.resolve(&conv.chat_identifier) {
-                conv.resolved_name = Some(name.to_string());
+        if conv.display_name.is_none() || conv.display_name.as_ref().map(|s| s.is_empty()).unwrap_or(false) {
+            if conv.is_group() {
+                // For groups, resolve participant names
+                let names: Vec<String> = conv.participants.iter()
+                    .filter_map(|p| contacts.resolve(p).map(|n| {
+                        // Use first name only for groups
+                        n.split_whitespace().next().unwrap_or(n).to_string()
+                    }))
+                    .collect();
+                
+                if !names.is_empty() {
+                    conv.resolved_name = Some(names.join(", "));
+                }
+            } else {
+                // For 1:1 chats, resolve the identifier
+                if let Some(name) = contacts.resolve(&conv.chat_identifier) {
+                    conv.resolved_name = Some(name.to_string());
+                }
             }
         }
     }
@@ -133,6 +148,10 @@ fn send_all(state: State<AppState>) -> Result<Vec<SendResult>, String> {
     for (chat_id, text) in to_send {
         if let Some(conv) = conv_map.get(&chat_id) {
             let success = send_message(&conv.chat_identifier, &text, conv.is_group()).is_ok();
+            if success {
+                // Mark conversation as read after successful send
+                let _ = mark_as_read(&conv.chat_identifier);
+            }
             results.push(SendResult {
                 chat_id,
                 success,
@@ -142,6 +161,11 @@ fn send_all(state: State<AppState>) -> Result<Vec<SendResult>, String> {
     }
     
     Ok(results)
+}
+
+#[tauri::command]
+fn mark_read(chat_identifier: String) -> Result<usize, String> {
+    mark_as_read(&chat_identifier).map_err(|e| e.to_string())
 }
 
 #[derive(serde::Serialize)]
@@ -239,6 +263,7 @@ fn get_attachment(path: String) -> Result<Vec<u8>, String> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             get_conversations,
@@ -247,6 +272,7 @@ fn main() {
             toggle_later,
             toggle_ignore,
             send_all,
+            mark_read,
             get_state,
             open_full_disk_access,
             load_contacts,

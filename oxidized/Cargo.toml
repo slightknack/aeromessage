@@ -21,6 +21,7 @@ serde_json = "1.0"
 thiserror = "2.0"
 dirs = "6.0"
 tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
 
 [dev-dependencies]
 tempfile = "3.15"
