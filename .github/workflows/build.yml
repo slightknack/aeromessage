@@ -1,0 +1,94 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            arch: 'arm64'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            arch: 'x64'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './oxidized -> target'
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Build Tauri app
+        working-directory: oxidized
+        run: npx @tauri-apps/cli build ${{ matrix.args }}
+
+      - name: Create DMG
+        working-directory: oxidized
+        run: |
+          mkdir -p out
+          APP_PATH="target/${{ matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}/release/bundle/macos/Aeromessage.app"
+          DMG_NAME="Aeromessage-${{ matrix.arch }}.dmg"
+          create-dmg \
+            --volname "Aeromessage" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "Aeromessage.app" 150 190 \
+            --app-drop-link 450 190 \
+            "out/$DMG_NAME" \
+            "$APP_PATH"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aeromessage-${{ matrix.arch }}
+          path: oxidized/out/*.dmg
+
+  release:
+    needs: build-macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(jq -r .version oxidized/tauri.conf.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Aeromessage v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: artifacts/**/*.dmg
+          generate_release_notes: true
