@@ -1,3 +1,9 @@
+---
+model:  claude-opus-4-5
+date:   2026-01-23
+driver: Isaac Clayton
+---
+
 # Aeromessage
 
 *Batch-reply to iMessages, beautifully.*
