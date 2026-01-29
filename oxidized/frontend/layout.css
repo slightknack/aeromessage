@@ -879,6 +879,7 @@ body.privacy-mode .reply-input {
     font-family: 'Flow Rounded', sans-serif !important;
 }
 
-body.privacy-mode .contact-photo {
-    filter: blur(8px);
+body.privacy-mode .message-images img {
+    filter: blur(16px);
+    clip-path: inset(0 round 8px);
 }

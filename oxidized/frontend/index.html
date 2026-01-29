@@ -605,8 +605,12 @@
             // Update toggle button state
             const toggle = document.querySelector('.privacy-toggle');
             if (toggle) toggle.classList.toggle('active', privacyMode);
-            // Recalculate masonry layout since font change affects card heights
-            layoutMasonry();
+            // Recalculate masonry layout after font renders
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    layoutMasonry();
+                });
+            });
         }
 
         init();
